@@ -94,7 +94,7 @@ interface Project {
 
 // Main component
 const CarbonCreditSystem = () => {
-  const [credits, setCredits] = useState(100);
+  const [credits, setCredits] = useState(0);
   const [price, setPrice] = useState(30);
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');

@@ -18,14 +18,14 @@ import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, Legend, BarChart, Bar,
 // Emission factors and offsets
 const emissionFactors = {
   'surface-mining': {
-    blasting: 0.5,
-    excavation: 1.0,
-    transportation: 0.3,
+    blasting: 0.35,
+    excavation: 0.85,
+    transportation: 0.25,
   },
   'underground-mining': {
-    roomAndPillar: 0.7,
-    longwall: 0.9,
-    subLevelCaving: 0.6,
+    roomAndPillar: 0.65,
+    longwall: 0.75,
+    subLevelCaving: 0.55,
   },
 } as const;
 
