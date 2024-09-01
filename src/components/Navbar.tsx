@@ -59,10 +59,8 @@ function Navbar({ className }: { className?: string }) {
                 <HoveredLink href="/emissions">Calculate Emissions</HoveredLink>
                 <HoveredLink href="/emissions-history">Emissions History</HoveredLink>
               </MenuItem>
-              <MenuItem setActive={setActive} active={active} item="Reports">
-                <HoveredLink href="/reports/daily">Daily Reports</HoveredLink>
-                <HoveredLink href="/reports/monthly">Monthly Reports</HoveredLink>
-                <HoveredLink href="/reports/annual">Annual Reports</HoveredLink>
+              <MenuItem setActive={setActive} active={active} item="Compliances">
+                <HoveredLink href="/compliances">Compliances</HoveredLink>
               </MenuItem>
               <MenuItem setActive={setActive} active={active} item="Resources">
                 <HoveredLink href="/resources/best-practices">Best Practices</HoveredLink>

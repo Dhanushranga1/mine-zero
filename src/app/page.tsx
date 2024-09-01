@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ArrowRight, BarChart2, Leaf, CreditCard, TrendingUp } from 'lucide-react';
+import { ArrowRight, BarChart2, CreditCard, TrendingUp, BookOpen } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface FeatureCardProps {
@@ -58,12 +58,6 @@ export default function Home() {
             icon={BarChart2}
           />
           <FeatureCard
-            href="/carbon-neutrality"
-            title="Neutrality Pathways"
-            description="Discover strategies to achieve carbon neutrality."
-            icon={Leaf}
-          />
-          <FeatureCard
             href="/carbon-credits"
             title="Carbon Credits"
             description="Navigate the world of carbon credit trading."
@@ -74,6 +68,12 @@ export default function Home() {
             title="Neutrality Pathways"
             description="Explore strategies to achieve carbon neutrality."
             icon={TrendingUp}
+          />
+          <FeatureCard
+            href="/resources"
+            title="Resources & Documentation"
+            description="Access guides, FAQs, and additional resources."
+            icon={BookOpen}
           />
         </motion.div>
       </div>
