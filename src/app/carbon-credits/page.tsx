@@ -1,452 +1,369 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { LineChart, XAxis, YAxis, Tooltip, Line, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { AlertCircle, Wallet } from 'lucide-react';
-import { ethers } from 'ethers';
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
+import React, { useState, useEffect } from 'react';
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  LineChart, Line
+} from 'recharts';
+import { 
+  Card, CardContent, CardHeader, CardTitle, CardFooter 
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
+import { 
+  ArrowDown, ArrowUp, Download, AlertCircle, CheckCircle
+} from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
-// Mock ABI for the smart contract
-const ABI = [
-  "function balanceOf(address owner) view returns (uint256)",
-  "function transfer(address to, uint256 amount) returns (bool)",
-  "function buy(uint256 amount) payable",
-  "function sell(uint256 amount)",
-];
-
-// Mock historical data
+// Mock data for charts
 const historicalData = [
-  { date: '2023-01', price: 25, volume: 1000 },
-  { date: '2023-02', price: 27, volume: 1200 },
-  { date: '2023-03', price: 26, volume: 900 },
-  { date: '2023-04', price: 28, volume: 1100 },
-  { date: '2023-05', price: 30, volume: 1300 },
+  { cycle: "2021-22", credits: 10000 },
+  { cycle: "2022-23", credits: -5000 },
+  { cycle: "2023-24", credits: 15000 },
 ];
 
-// Blockchain integration (mock implementation)
-const useBlockchain = () => {
-  const [contract, setContract] = useState<ethers.Contract | null>(null);
-  const [balance, setBalance] = useState(0);
+const priceData = [
+  { year: "2021", price: 250 },
+  { year: "2022", price: 400 },
+  { year: "2023", price: 350 },
+  { year: "2024", price: 300 },
+];
 
+export default function CarbonCreditsPage() {
+  // Input states
+  const [targetIntensity, setTargetIntensity] = useState<number>(0.45);
+  const [actualIntensity, setActualIntensity] = useState<number>(0.40);
+  const [production, setProduction] = useState<number>(200000);
+  const [creditPrice, setCreditPrice] = useState<number>(300);
+  
+  // Result states
+  const [credits, setCredits] = useState<number>(0);
+  const [creditType, setCreditType] = useState<'Surplus' | 'Deficit'>('Surplus');
+  const [tradeValue, setTradeValue] = useState<number>(0);
+  const [compliancePercent, setCompliancePercent] = useState<number>(0);
+  
+  // Trading simulation states
+  const [tradeMode, setTradeMode] = useState<'buy' | 'sell'>('sell');
+  const [tradePrice, setTradePrice] = useState<number>(300);
+  const [tradeResult, setTradeResult] = useState<{
+    status: string;
+    message: string;
+    amount: number;
+  } | null>(null);
+
+  // Calculate results whenever inputs change
   useEffect(() => {
-    const initializeContract = async () => {
-      try {
-        if (typeof window !== 'undefined' && (window as any).ethereum) {
-          const provider = new ethers.BrowserProvider((window as any).ethereum);
-          const signer = await provider.getSigner();
-          const contractAddress = "0x..."; // Replace with actual contract address
-          const carbonCreditContract = new ethers.Contract(contractAddress, ABI, signer);
-          setContract(carbonCreditContract);
-        }
-      } catch (error) {
-        console.error("Failed to initialize contract:", error);
-      }
-    };
-    initializeContract();
-  }, []);
+    calculateResults();
+  }, [targetIntensity, actualIntensity, production, creditPrice]);
 
-  const updateBalance = useCallback(async () => {
-    if (contract) {
-      const signer = await contract.runner?.provider?.getSigner();
-      const address = await signer.getAddress();
-      const balance = await contract.balanceOf(address);
-      setBalance(Number(ethers.formatEther(balance)));
-    }
-  }, [contract]);
+  const calculateResults = () => {
+    // Check if we have all required inputs
+    if (!targetIntensity || !actualIntensity || !production) return;
+    
+    // Calculate credits
+    let calculatedCredits: number;
+    let type: 'Surplus' | 'Deficit';
 
-  useEffect(() => {
-    updateBalance();
-  }, [updateBalance]);
-
-  return { contract, balance, updateBalance };
-};
-
-interface EmissionData {
-  year: number;
-  emissions: number;
-  cleanTech: number;
-  afforestation: number;
-  renewables: number;
-  energyEfficiency: number;
-  carbonCredits: number;
-}
-
-interface SimulationResult {
-  currentEmissions: number;
-  projectedReduction: number;
-  potentialCredits: number;
-  financialImpact: number;
-}
-
-interface Project {
-  id: number;
-  name: string;
-  credits: number;
-  cost: number;
-}
-
-// Main component
-const CarbonCreditSystem = () => {
-  const [credits, setCredits] = useState(0);
-  const [price, setPrice] = useState(30);
-  const [showAlert, setShowAlert] = useState(false);
-  const [alertMessage, setAlertMessage] = useState('');
-  const [simulationResult, setSimulationResult] = useState<SimulationResult | null>(null);
-  const [tradeAmount, setTradeAmount] = useState('');
-  const [offsetProjects, setOffsetProjects] = useState<Project[]>([
-    { id: 1, name: 'Reforestation Project', credits: 50, cost: 1000 },
-    { id: 2, name: 'Solar Farm Initiative', credits: 30, cost: 800 },
-    { id: 3, name: 'Wind Energy Project', credits: 40, cost: 900 },
-  ]);
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [cleanTechReduction, setCleanTechReduction] = useState(0);
-  const [afforestationOffset, setAfforestationOffset] = useState(0);
-  const [renewablesReduction, setRenewablesReduction] = useState(0);
-  const [energyEfficiencyReduction, setEnergyEfficiencyReduction] = useState(0);
-  const [mineSize, setMineSize] = useState('medium');
-  const [baselineEmissions, setBaselineEmissions] = useState(1000);
-  const [userCredits, setUserCredits] = useState(0);
-
-  const { contract, balance, updateBalance } = useBlockchain();
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setPrice(prevPrice => {
-        const change = (Math.random() - 0.5) * 2;
-        return Math.max(1, prevPrice + change);
-      });
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  const handleTrade = async (isBuying: boolean) => {
-    if (!tradeAmount || isNaN(parseFloat(tradeAmount))) {
-      setAlertMessage('Please enter a valid amount');
-      setShowAlert(true);
-      return;
-    }
-
-    try {
-      if (contract) {
-        const amount = ethers.parseEther(tradeAmount);
-        if (isBuying) {
-          await contract.buy(amount, { value: ethers.parseEther((parseFloat(tradeAmount) * price).toString()) });
-          setCredits(prevCredits => prevCredits + parseFloat(tradeAmount));
-        } else {
-          await contract.sell(amount);
-          setCredits(prevCredits => prevCredits - parseFloat(tradeAmount));
-        }
-        await updateBalance();
-        setAlertMessage(`Successfully ${isBuying ? 'bought' : 'sold'} ${tradeAmount} credits`);
-        setShowAlert(true);
-        document.getElementById('tradeAmount')?.focus();
-      }
-    } catch (error) {
-      if (error instanceof Error) {
-        setAlertMessage(`Transaction failed: ${error.message}`);
-      } else {
-        setAlertMessage('Transaction failed: Unknown error');
-      }
-      setShowAlert(true);
-    }
-  };
-
-  const handleSimulation = () => {
-    const totalReduction = cleanTechReduction + afforestationOffset + renewablesReduction + energyEfficiencyReduction;
-    const projectedReduction = baselineEmissions * (totalReduction / 100);
-    const remainingEmissions = baselineEmissions - projectedReduction;
-    const potentialCredits = Math.floor(projectedReduction / 1000); // 1 credit per 1000 units of reduction
-    const financialImpact = potentialCredits * price;
-
-    setSimulationResult({
-      currentEmissions: baselineEmissions,
-      projectedReduction,
-      potentialCredits,
-      financialImpact,
-    });
-
-    // Credit the user with carbon credits
-    setUserCredits(prevCredits => prevCredits + potentialCredits);
-    setAlertMessage(`You've earned ${potentialCredits} carbon credits!`);
-    setShowAlert(true);
-  };
-
-  const predictFuturePrice = () => {
-    const lastPrice = historicalData[historicalData.length - 1].price;
-    const trend = (price - lastPrice) / lastPrice;
-    const volatility = 0.1; // Example volatility factor
-    const predictedChange = trend + (Math.random() - 0.5) * volatility;
-    return price * (1 + predictedChange);
-  };
-
-  const handleInvest = async (project: Project) => {
-    if (userCredits >= project.credits) {
-      try {
-        setUserCredits(prev => prev - project.credits);
-        setOffsetProjects(prev => prev.filter(p => p.id !== project.id));
-        setAlertMessage(`Successfully invested ${project.credits} credits in ${project.name}`);
-        setShowAlert(true);
-      } catch (error) {
-        setAlertMessage('Investment failed. Please try again.');
-        setShowAlert(true);
-      }
+    if (actualIntensity < targetIntensity) {
+      calculatedCredits = (targetIntensity - actualIntensity) * production;
+      type = 'Surplus';
     } else {
-      setAlertMessage('Not enough credits to invest in this project');
-      setShowAlert(true);
+      calculatedCredits = (actualIntensity - targetIntensity) * production;
+      type = 'Deficit';
+    }
+    
+    // Calculate trade value
+    const value = calculatedCredits * creditPrice;
+    
+    // Calculate compliance percentage
+    const compliance = (actualIntensity / targetIntensity) * 100;
+    
+    // Update states
+    setCredits(calculatedCredits);
+    setCreditType(type);
+    setTradeValue(value);
+    setCompliancePercent(Math.min(compliance, 100));
+  };
+
+  const handleCalculate = () => {
+    calculateResults();
+  };
+
+  const simulateTrade = () => {
+    const MARKET_PRICE = 300; // Reference market price
+    
+    if (tradeMode === 'sell') {
+      if (tradePrice <= MARKET_PRICE) {
+        setTradeResult({
+          status: 'success',
+          message: 'Trade Successful',
+          amount: credits * tradePrice
+        });
+      } else {
+        setTradeResult({
+          status: 'error',
+          message: 'No buyers found at this price',
+          amount: 0
+        });
+      }
+    } else { // buy mode
+      if (tradePrice >= MARKET_PRICE) {
+        setTradeResult({
+          status: 'success',
+          message: 'Trade Successful',
+          amount: credits * tradePrice
+        });
+      } else {
+        setTradeResult({
+          status: 'error',
+          message: 'No sellers found at this price',
+          amount: 0
+        });
+      }
     }
   };
 
-  // Project Details Modal
-  const ProjectDetailsModal = ({ project, onClose }: { project: Project; onClose: () => void }) => (
-    <motion.div
-      initial={{ x: '100%' }}
-      animate={{ x: 0 }}
-      exit={{ x: '100%' }}
-      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-      className="fixed inset-y-0 right-0 w-96 bg-white shadow-lg p-6 overflow-y-auto"
-    >
-      <h2 className="text-2xl font-bold mb-4">{project.name}</h2>
-      <p>Credits: {project.credits}</p>
-      <p>Cost: ${project.cost}</p>
-      <div className="mt-4">
-        <Button onClick={() => handleInvest(project)} className="mr-2">Invest</Button>
-        <Button onClick={onClose} variant="secondary">Close</Button>
-      </div>
-    </motion.div>
-  );
+  const exportCSV = () => {
+    const csvContent = `Target Intensity,${targetIntensity} tCO₂/ton
+Actual Intensity,${actualIntensity} tCO₂/ton
+Production,${production.toLocaleString()} tons
+Credits ${creditType === 'Surplus' ? 'Earned' : 'Needed'},${credits.toLocaleString()} tons
+Credit Value,₹${tradeValue.toLocaleString()}
+Market Rate,₹${creditPrice}/t
+Credit Type,${creditType}
+Compliance %,${compliancePercent.toFixed(1)}%
+Recommendation,${creditType === 'Surplus' ? 'Eligible for carbon trading' : 'Need to reduce intensity'}`;
 
-  // Carbon Footprint Breakdown data
-  const carbonFootprintData = [
-    { name: 'Transportation', value: 30 },
-    { name: 'Energy', value: 40 },
-    { name: 'Agriculture', value: 20 },
-    { name: 'Waste', value: 10 },
-  ];
-
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'carbon_credits_report.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
-    <div className="p-8 max-w-3xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6">Carbon Credit System</h1>
-      {showAlert && (
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Alert</AlertTitle>
-          <AlertDescription>{alertMessage}</AlertDescription>
-        </Alert>
-      )}
-
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Wallet</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center space-x-2">
-            <Wallet className="h-6 w-6" />
-            <span>Balance: {credits.toFixed(2)} credits</span>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Current Price: ${price.toFixed(2)}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center space-x-2">
-            <Button onClick={() => handleTrade(true)}>Buy Credits</Button>
-            <Button onClick={() => handleTrade(false)} variant="destructive">Sell Credits</Button>
-            <Input
-              type="number"
-              placeholder="Enter amount"
-              value={tradeAmount}
-              onChange={(e) => setTradeAmount(e.target.value)}
-              className="w-32"
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Historical Data</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={historicalData}>
-              <XAxis dataKey="date" />
-              <YAxis />
-              <Tooltip />
-              <Line type="monotone" dataKey="price" stroke="#8884d8" activeDot={{ r: 8 }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Carbon Footprint Breakdown</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={carbonFootprintData}
-                cx="50%"
-                cy="50%"
-                outerRadius={100}
-                fill="#8884d8"
-                dataKey="value"
-                label
-              >
-                {carbonFootprintData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Offset Projects</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {offsetProjects.map(project => (
-              <Card key={project.id}>
-                <CardHeader>
-                  <CardTitle>{project.name}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p>Credits Required: {project.credits}</p>
-                  <p>Cost: ${project.cost}</p>
-                  <Button 
-                    onClick={() => setSelectedProject(project)} 
-                    className="mt-2"
-                    disabled={userCredits < project.credits}
-                  >
-                    {userCredits >= project.credits ? 'Invest' : 'Not Enough Credits'}
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {selectedProject && (
-        <AnimatePresence>
-          <ProjectDetailsModal
-            project={selectedProject}
-            onClose={() => setSelectedProject(null)}
-          />
-        </AnimatePresence>
-      )}
-
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Emission Reduction Simulation</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
+    <div className="container mx-auto px-4 py-8 max-w-6xl">
+      <h1 className="text-3xl font-bold mb-6">Carbon Credits Management</h1>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        {/* Input Panel */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Input Parameters</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="baselineEmissions">Baseline Emissions (tons CO2/year)</Label>
-              <Input
-                id="baselineEmissions"
+              <Label htmlFor="target-intensity">Target Intensity (tCO₂/ton)</Label>
+              <Input 
+                id="target-intensity" 
+                type="number" 
+                step="0.01"
+                value={targetIntensity}
+                onChange={(e) => setTargetIntensity(parseFloat(e.target.value))}
+              />
+            </div>
+            <div>
+              <Label htmlFor="actual-intensity">Actual Intensity (tCO₂/ton)</Label>
+              <Input 
+                id="actual-intensity" 
+                type="number" 
+                step="0.01"
+                value={actualIntensity}
+                onChange={(e) => setActualIntensity(parseFloat(e.target.value))}
+              />
+            </div>
+            <div>
+              <Label htmlFor="production">Production Volume (tons)</Label>
+              <Input 
+                id="production" 
                 type="number"
-                value={baselineEmissions}
-                onChange={(e) => setBaselineEmissions(Number(e.target.value))}
+                value={production}
+                onChange={(e) => setProduction(parseFloat(e.target.value))}
               />
             </div>
             <div>
-              <Label htmlFor="cleanTech">Clean Technology Reduction (%)</Label>
-              <Slider
-                id="cleanTech"
-                min={0}
-                max={100}
-                step={1}
-                value={[cleanTechReduction]}
-                onValueChange={(value) => setCleanTechReduction(value[0])}
+              <Label htmlFor="credit-price">Credit Price (₹/tCO₂)</Label>
+              <Input 
+                id="credit-price" 
+                type="number"
+                value={creditPrice}
+                onChange={(e) => setCreditPrice(parseFloat(e.target.value))}
               />
             </div>
+            <Button onClick={handleCalculate} className="w-full">Calculate</Button>
+          </CardContent>
+        </Card>
+
+        {/* Results Panel */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Carbon Credit Results</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium">Credit Status:</span>
+              <span className="text-lg font-bold">
+                You have {creditType === 'Surplus' ? 'earned' : 'need'} {credits.toLocaleString()} credits
+              </span>
+            </div>
+            
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium">Trade Value:</span>
+              <span className="text-lg">
+                Worth approx ₹{tradeValue.toLocaleString()} at ₹{creditPrice}/ton
+              </span>
+            </div>
+            
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium">Status:</span>
+              <Badge variant={creditType === 'Surplus' ? "success" : "destructive"}>
+                {creditType}
+                {creditType === 'Surplus' ? 
+                  <ArrowUp className="ml-1 h-4 w-4" /> : 
+                  <ArrowDown className="ml-1 h-4 w-4" />
+                }
+              </Badge>
+            </div>
+            
             <div>
-              <Label htmlFor="afforestation">Afforestation Offset (%)</Label>
-              <Slider
-                id="afforestation"
-                min={0}
-                max={100}
-                step={1}
-                value={[afforestationOffset]}
-                onValueChange={(value) => setAfforestationOffset(value[0])}
-              />
+              <div className="flex justify-between text-sm font-medium mb-1">
+                <span>Compliance Level</span>
+                <span>{compliancePercent.toFixed(1)}%</span>
+              </div>
+              <Progress value={compliancePercent} className="h-2" />
             </div>
-            <div>
-              <Label htmlFor="renewables">Renewables Reduction (%)</Label>
-              <Slider
-                id="renewables"
-                min={0}
-                max={100}
-                step={1}
-                value={[renewablesReduction]}
-                onValueChange={(value) => setRenewablesReduction(value[0])}
-              />
-            </div>
-            <div>
-              <Label htmlFor="energyEfficiency">Energy Efficiency Reduction (%)</Label>
-              <Slider
-                id="energyEfficiency"
-                min={0}
-                max={100}
-                step={1}
-                value={[energyEfficiencyReduction]}
-                onValueChange={(value) => setEnergyEfficiencyReduction(value[0])}
-              />
-            </div>
-            <Button onClick={handleSimulation} className="mt-4">Run Simulation</Button>
-          </div>
-          {simulationResult && (
-            <div className="p-4 border rounded-lg mt-4">
-              <p>Current Emissions: {simulationResult.currentEmissions} units</p>
-              <p>Projected Reduction: {simulationResult.projectedReduction.toFixed(2)} units</p>
-              <p>Potential Credits: {simulationResult.potentialCredits.toFixed(2)} credits</p>
-              <p>Financial Impact: ${simulationResult.financialImpact.toFixed(2)}</p>
-            </div>
+            
+            <Button variant="outline" onClick={exportCSV} className="w-full">
+              <Download className="mr-2 h-4 w-4" />
+              Export Report (CSV)
+            </Button>
+          </CardContent>
+          <CardFooter>
+            <p className="text-sm text-muted-foreground">
+              Recommendation: {creditType === 'Surplus' 
+                ? 'Consider monetizing credits via Indian Carbon Market (IEX/BEE)' 
+                : 'Reduce intensity through efficiency measures or carbon market purchases'}
+            </p>
+          </CardFooter>
+        </Card>
+      </div>
+
+      {/* Trading Simulation Section */}
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle>Credit Trading Simulation</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Tabs defaultValue="sell" onValueChange={(val) => setTradeMode(val as 'buy' | 'sell')}>
+            <TabsList className="grid w-full grid-cols-2 mb-4">
+              <TabsTrigger value="sell">Sell Credits</TabsTrigger>
+              <TabsTrigger value="buy">Buy Credits</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="sell" className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="sell-amount">Credits Available</Label>
+                  <Input id="sell-amount" value={creditType === 'Surplus' ? credits.toLocaleString() : '0'} disabled />
+                </div>
+                <div>
+                  <Label htmlFor="sell-price">Ask Price (₹/ton)</Label>
+                  <Input 
+                    id="sell-price" 
+                    type="number" 
+                    value={tradePrice}
+                    onChange={(e) => setTradePrice(parseFloat(e.target.value))}
+                  />
+                </div>
+              </div>
+              <Button onClick={simulateTrade} disabled={creditType !== 'Surplus'}>
+                Simulate Sale
+              </Button>
+            </TabsContent>
+            
+            <TabsContent value="buy" className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="buy-amount">Credits Needed</Label>
+                  <Input id="buy-amount" value={creditType === 'Deficit' ? credits.toLocaleString() : '0'} disabled />
+                </div>
+                <div>
+                  <Label htmlFor="buy-price">Bid Price (₹/ton)</Label>
+                  <Input 
+                    id="buy-price" 
+                    type="number"
+                    value={tradePrice}
+                    onChange={(e) => setTradePrice(parseFloat(e.target.value))}
+                  />
+                </div>
+              </div>
+              <Button onClick={simulateTrade} disabled={creditType !== 'Deficit'}>
+                Simulate Purchase
+              </Button>
+            </TabsContent>
+          </Tabs>
+          
+          {tradeResult && (
+            <Alert className="mt-4" variant={tradeResult.status === 'success' ? 'default' : 'destructive'}>
+              {tradeResult.status === 'success' ? 
+                <CheckCircle className="h-4 w-4" /> : 
+                <AlertCircle className="h-4 w-4" />
+              }
+              <AlertTitle>{tradeResult.message}</AlertTitle>
+              <AlertDescription>
+                {tradeResult.status === 'success' ? 
+                  `${tradeMode === 'sell' ? 'Sale completed for' : 'Purchase completed for'} ₹${tradeResult.amount.toLocaleString()}` :
+                  `${tradeMode === 'sell' ? 'Try lowering your ask price' : 'Try increasing your bid price'} to current market rate (₹300/ton)`
+                }
+              </AlertDescription>
+            </Alert>
           )}
         </CardContent>
       </Card>
 
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Your Carbon Credits</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center space-x-2">
-            <span>Credits: {userCredits}</span>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Price Prediction</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p>Predicted Future Price: ${predictFuturePrice().toFixed(2)}</p>
-        </CardContent>
-      </Card>
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Credit Performance Over Cycles</CardTitle>
+          </CardHeader>
+          <CardContent className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={historicalData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="cycle" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="credits" fill="#8884d8" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader>
+            <CardTitle>Credit Value Trend</CardTitle>
+          </CardHeader>
+          <CardContent className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={priceData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="year" />
+                <YAxis />
+                <Tooltip />
+                <Line type="monotone" dataKey="price" stroke="#82ca9d" />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
-};
-
-export default CarbonCreditSystem;
+}
