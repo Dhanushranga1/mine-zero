@@ -82,7 +82,7 @@ export default function Home() {
           </p>
         </motion.div>
 
-        {/* Impact Metrics Section */}
+        {/* Impact Metrics Section
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -96,7 +96,7 @@ export default function Home() {
             <MetricCard value="82K+" label="Carbon Credits Simulated (tons)" iconColor="bg-purple-600" />
             <MetricCard value="100%" label="CPCB-aligned Compliance" iconColor="bg-orange-500" />
           </div>
-        </motion.div>
+        </motion.div> */}
 
         {/* Platform Highlights */}
         <motion.div 
@@ -164,7 +164,7 @@ export default function Home() {
               icon={TrendingUp}
             />
             <FeatureCard
-              href="/resources"
+              href="/`reso`urces"
               title="Resources & Documentation"
               description="Access guides, FAQs, and additional resources."
               icon={BookOpen}
